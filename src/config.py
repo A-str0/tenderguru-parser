@@ -41,6 +41,13 @@ class Config:
             },
             "email_sending": {
                 "interval": 300      # Interval between email sends in seconds (5 minutes)
+            },
+            "database": {
+                "path": "database.db"  # Path to the SQLite database file
+            },
+            "scheduler": {
+                "enabled": False,        # Enable/disable scheduled parsing
+                "interval_minutes": 60   # Interval between scheduled runs in minutes
             }
         }
 

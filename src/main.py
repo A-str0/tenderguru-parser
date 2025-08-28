@@ -1,11 +1,12 @@
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, 
                              QTextEdit, QLabel, QLineEdit, QFormLayout, 
-                             QGroupBox, QSpinBox, QComboBox)
+                             QGroupBox, QSpinBox, QComboBox, QCheckBox)
 from services.orchestrator_service import OrchestratorService
 from config import Config
 import sys
 import logging
+import threading
 
 
 class LogHandler(QThread):
@@ -34,6 +35,10 @@ class TenderGuruParserApp(QWidget):
         self.log_handler = LogHandler()
         self.log_handler.new_log.connect(self.update_log)
         self.init_ui()
+        
+        # Initialize scheduler if enabled
+        if self.config.get("scheduler.enabled", False):
+            self.start_scheduler()
 
     def init_ui(self):
         self.setWindowTitle('Парсер')
@@ -104,11 +109,23 @@ class TenderGuruParserApp(QWidget):
         logging_layout.addRow(QLabel("Уровень логирования:"), self.logging_level_input)
         logging_group.setLayout(logging_layout)
 
+        scheduler_group = QGroupBox("Настройки планировщика")
+        scheduler_layout = QFormLayout()
+        self.scheduler_enabled_input = QCheckBox()
+        self.scheduler_enabled_input.setChecked(self.config.get("scheduler.enabled", False))
+        scheduler_layout.addRow(QLabel("Включить планировщик:"), self.scheduler_enabled_input)
+        self.scheduler_interval_input = QSpinBox()
+        self.scheduler_interval_input.setRange(1, 1440)
+        self.scheduler_interval_input.setValue(self.config.get("scheduler.interval_minutes", 60))
+        scheduler_layout.addRow(QLabel("Интервал (минуты):"), self.scheduler_interval_input)
+        scheduler_group.setLayout(scheduler_layout)
+
         config_layout.addRow(api_group)
         config_layout.addRow(email_group)
         config_layout.addRow(parsing_group)
         config_layout.addRow(email_sending_group)
         config_layout.addRow(logging_group)
+        config_layout.addRow(scheduler_group)
         config_group.setLayout(config_layout)
         main_layout.addWidget(config_group)
 
@@ -121,6 +138,10 @@ class TenderGuruParserApp(QWidget):
         self.stop_button.clicked.connect(self.stop_parsing)
         self.stop_button.setEnabled(False)
         button_layout.addWidget(self.stop_button)
+        
+        self.reset_button = QPushButton('Сбросить состояние парсера')
+        self.reset_button.clicked.connect(self.reset_parser_state)
+        button_layout.addWidget(self.reset_button)
         
         self.save_config_button = QPushButton('Сохранить конфигурацию')
         self.save_config_button.clicked.connect(self.save_config)
@@ -148,8 +169,47 @@ class TenderGuruParserApp(QWidget):
         self.config.set("parsing.timeout", self.parsing_timeout_input.value())
         self.config.set("email_sending.interval", self.email_sending_interval_input.value())
         self.config.set("logging.level", self.logging_level_input.currentText())
+        self.config.set("scheduler.enabled", self.scheduler_enabled_input.isChecked())
+        self.config.set("scheduler.interval_minutes", self.scheduler_interval_input.value())
         
         self.log_output.append("Конфигурация успешно сохранена!")
+        
+        # Start/stop scheduler based on configuration
+        if self.scheduler_enabled_input.isChecked():
+            self.start_scheduler()
+        else:
+            self.stop_scheduler()
+
+    def reset_parser_state(self):
+        """Reset the parser state to start from page 0."""
+        try:
+            self.orchestrator.database_service.reset_parser_state()
+            self.log_output.append("Состояние парсера сброшено. Начнет с первой страницы.")
+        except Exception as e:
+            self.log_output.append(f"Ошибка при сбросе состояния: {e}")
+
+    def start_scheduler(self):
+        """Start the scheduled parsing."""
+        if hasattr(self, 'scheduler_timer') and self.scheduler_timer.isActive():
+            self.scheduler_timer.stop()
+        
+        interval_minutes = self.config.get("scheduler.interval_minutes", 60)
+        self.scheduler_timer = QTimer()
+        self.scheduler_timer.timeout.connect(self.scheduled_parse)
+        self.scheduler_timer.start(interval_minutes * 60 * 1000)  # Convert minutes to milliseconds
+        self.log_output.append(f"Планировщик запущен. Интервал: {interval_minutes} минут.")
+
+    def stop_scheduler(self):
+        """Stop the scheduled parsing."""
+        if hasattr(self, 'scheduler_timer') and self.scheduler_timer.isActive():
+            self.scheduler_timer.stop()
+            self.log_output.append("Планировщик остановлен.")
+
+    def scheduled_parse(self):
+        """Method called by scheduler to start parsing."""
+        if not self.orchestrator.is_processing():
+            self.log_output.append("Запуск запланированного парсинга...")
+            self.start_parsing()
 
     def start_parsing(self):
         self.save_config()
@@ -179,6 +239,11 @@ class TenderGuruParserApp(QWidget):
     def closeEvent(self, event):
         if self.orchestrator.is_processing():
             self.orchestrator.stop_processing()
+        
+        # Stop scheduler if running
+        if hasattr(self, 'scheduler_timer') and self.scheduler_timer.isActive():
+            self.scheduler_timer.stop()
+            
         event.accept()
 
 

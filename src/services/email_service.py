@@ -27,8 +27,8 @@ class EmailService:
             email_interval = self.config.get("email_sending.interval", 300)  # 5 minutes default
             current_time = time.time()
             if current_time - self.last_email_time < email_interval:
-                self.logger.info(f"Skipping email send to respect interval. Next email can be sent in {email_interval - (current_time - self.last_email_time):.0f} seconds.")
-                return
+                self.logger.info(f"Delaying email send to respect interval. Next email can be sent in {email_interval - (current_time - self.last_email_time):.0f} seconds.")
+                time.sleep(email_interval - (current_time - self.last_email_time))
 
             msg = MIMEMultipart()
             msg["From"] = user
