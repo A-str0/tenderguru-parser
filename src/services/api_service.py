@@ -40,15 +40,11 @@ class APIService:
     # TODO: сделать для ИП
     # TODO: учитывать, что на запрос может найтись несколько компаний
 
-    def parse_webpage_ip(self, text:str) -> dict:
-        
-
-    def parse_webpage_ooo(self, text: str) -> dict:
+    def parse_webpage_ip(self, text: str) -> dict:
         soup: BeautifulSoup = BeautifulSoup(text, "html.parser")
-        
+
         result: dict = {
             "reg_date": None,
-            "capital": None,
             "connections": None,
             "gz_data": None,
             "gz_link": None,
@@ -56,22 +52,19 @@ class APIService:
         }
 
         try:
-            card: BeautifulSoup = soup.find("div", id="anketa")
-            if card:
-                requisites: BeautifulSoup = card.find("div", class_="company-requisites").find_all("div", class_="company-row")[1].find_all("dl", class_="company-col")
-                result["reg_date"] = requisites[0].find("dd", class_="company-info__text").get_text(strip=True)
-                result["capital"] = requisites[1].find("dd", class_="company-info__text").get_text(strip=True)
-        except Exception:
-            pass
-
+            requisites: BeautifulSoup = soup.find("div", class_="tiles__main").find_all("div", class_="requisites-ip")[2].find_all("dl", class_="requisites-ip__list")
+            result["reg_date"] = requisites[1].find("dd").get_text(strip=True)
+        except Exception as e:
+            self.logger.error(f"Requisies parsing error: {e}")
+        
         try:
             connections_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'connections'})
             if connections_card:
                 connections_html: str = connections_card.find("div", class_="tab-item active")
                 if connections_html:
                     result["connections"] = str(connections_html)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error(f"Connections parsing error: {e}")
 
         try:
             gz_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'gz'})
@@ -83,15 +76,76 @@ class APIService:
                     result["gz_data"] = gz_data_element.get_text(strip=True)
                 if gz_link_element:
                     result["gz_link"] = gz_link_element.get("href")
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error(f"GosZakupki parsing error: {e}")
+        
+        try:
+            licenses_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'licenses'})
+            if licenses_card:
+                result["licenses"] = licenses_card.get_text(strip=True)
+        except Exception as e:
+            self.logger.error(f"Licenses parsing error: {e}")
+        
+        return result
+
+
+    def parse_webpage_ooo(self, text: str) -> dict:
+        soup: BeautifulSoup = BeautifulSoup(text, "html.parser")
+        
+        result: dict = {
+            "reg_date": None,
+            "capital": None,
+            "connections": None,
+            "gz_data": None,
+            "gz_link": None,
+            "licenses": None,
+            "finances": None
+        }
+
+        try:
+            card: BeautifulSoup = soup.find("div", id="anketa")
+            if card:
+                requisites: BeautifulSoup = card.find("div", class_="company-requisites").find_all("div", class_="company-row")[1].find_all("dl", class_="company-col")
+                result["reg_date"] = requisites[0].find("dd", class_="company-info__text").get_text(strip=True)
+                result["capital"] = requisites[1].find("dd", class_="company-info__text").get_text(strip=True)
+        except Exception as e:
+            self.logger.error(f"Requisies parsing error: {e}")
+
+        try:
+            connections_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'connections'})
+            if connections_card:
+                connections_html: str = connections_card.find("div", class_="tab-item active")
+                if connections_html:
+                    result["connections"] = str(connections_html)
+        except Exception as e:
+            self.logger.error(f"Connections parsing error: {e}")
+
+        try:
+            gz_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'gz'})
+            if gz_card:
+                gz_data_element = gz_card.find("p", class_="tile-item__text")
+                gz_link_element = gz_card.find("a", class_="see-details")
+                
+                if gz_data_element:
+                    result["gz_data"] = gz_data_element.get_text(strip=True)
+                if gz_link_element:
+                    result["gz_link"] = gz_link_element.get("href")
+        except Exception as e:
+            self.logger.error(f"GosZakupki parsing error: {e}")
 
         try:
             licenses_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'licenses'})
             if licenses_card:
                 result["licenses"] = licenses_card.get_text(strip=True)
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.error(f"Licenses parsing error: {e}")
+
+        try:
+            accounting_card: BeautifulSoup = soup.find("div", attrs={'data-name': 'accounting'})
+            if accounting_card:
+                result["finances"] = accounting_card.find("div", class_="finance-col space-between")
+        except Exception as e:
+            self.logger.error(f"Finances parsing error: {e}")
 
         return result
 
