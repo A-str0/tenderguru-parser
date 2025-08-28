@@ -33,7 +33,7 @@ class ParsingService:
             if connections_card:
                 connections_html: str = connections_card.find("div", class_="tab-item active")
                 if connections_html:
-                    result["connections"] = str(connections_html)
+                    result["connections"] = str(connections_html.text.strip())
                     self.logger.debug("Successfully parsed connections")
             else:
                 self.logger.debug("No connections card found")
@@ -51,7 +51,7 @@ class ParsingService:
                     result["gz_data"] = gz_data_element.get_text(strip=True)
                     self.logger.debug(f"Successfully parsed gz_data: {result['gz_data']}")
                 if gz_link_element:
-                    result["gz_link"] = gz_link_element.get("href")
+                    result["gz_link"] = "https://www.rusprofile.ru" + str(gz_link_element.get("href"))
                     self.logger.debug(f"Successfully parsed gz_link: {result['gz_link']}")
             else:
                 self.logger.debug("No GosZakupki card found")
@@ -105,7 +105,7 @@ class ParsingService:
             if connections_card:
                 connections_html: str = connections_card.find("div", class_="tab-item active")
                 if connections_html:
-                    result["connections"] = str(connections_html)
+                    result["connections"] = str(connections_html.text.strip())
                     self.logger.debug("Successfully parsed connections")
                 else:
                     self.logger.debug("No active connections tab found")
@@ -125,7 +125,7 @@ class ParsingService:
                     result["gz_data"] = gz_data_element.get_text(strip=True)
                     self.logger.debug(f"Successfully parsed gz_data: {result['gz_data']}")
                 if gz_link_element:
-                    result["gz_link"] = gz_link_element.get("href")
+                    result["gz_link"] = "https://www.rusprofile.ru" + str(gz_link_element.get("href"))
                     self.logger.debug(f"Successfully parsed gz_link: {result['gz_link']}")
             else:
                 self.logger.debug("No GosZakupki card found")

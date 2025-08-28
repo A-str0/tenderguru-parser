@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 from config import Config
-
+from datetime import datetime
 
 _global_logger: Optional[logging.Logger] = None
 
@@ -16,11 +16,11 @@ def setup_logger(config: Config = None) -> logging.Logger:
     if config is not None:
         log_level = config.get("logging.level", "INFO")
         log_path = config.get("logging.log_path", "Logs")
-        log_filename = config.get("logging.log_filename", "tenderguru_parser.log")
+        log_filename = f"tenderguru_parser_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     else:
         log_level = "INFO"
         log_path = "Logs"
-        log_filename = "tenderguru_parser.log"
+        log_filename = f"tenderguru_parser_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
     logger = logging.getLogger("tenderguru_parser")
     

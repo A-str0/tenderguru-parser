@@ -20,7 +20,7 @@ class OrchestratorService:
         self.processing_thread = None
         self.stop_processing = threading.Event()
 
-    def start_processing(self, api_code: str, start_page: int = 1) -> None:
+    def start_processing(self, api_code: str, start_page: int = 0) -> None:
         if self.processing_thread and self.processing_thread.is_alive():
             self.logger.warning("Processing is already running")
             return
@@ -40,7 +40,7 @@ class OrchestratorService:
     def is_processing(self) -> bool:
         return self.processing_thread and self.processing_thread.is_alive()
 
-    def process_data(self, api_code: str, start_page: int = 1) -> None:
+    def process_data(self, api_code: str, start_page: int = 0) -> None:
         self.logger.info("Starting data processing...")
         page_number: int = start_page
         all_data: list = []
@@ -77,20 +77,22 @@ class OrchestratorService:
                     parsed_data = self.parse_item_data(item)
                     combined_data = {**item, **parsed_data}
                     
+                    self.logger.debug(combined_data)
+
                     try:
-                        subject_template = self.config.get("email.subject_template", "TenderGuru Data Report - {item_count} items")
-                        body_template = self.config.get("email.body_template", "Total items processed: {item_count}\n\n{items_data}")
+                        subject_template: str = self.config.get("email.subject_template", "Расторжение")
+                        body_template: str = self.config.get("email.body_template", "")
                         
                         item_count = 1
                         items_data = "\n".join([f"{key}: {value}" for key, value in combined_data.items()])
                         
-                        subject = subject_template.format(item_count=item_count)
-                        body = body_template.format(item_count=item_count, items_data=items_data)
+                        subject = subject_template.format(item_count=item_count, **combined_data)
+                        body = body_template.format(item_count=item_count, items_data=items_data, **combined_data)
                         
                         self.email_service.send_email(subject, body)
-                        self.logger.info(f"Email sent for item: {item.get('inn', 'Unknown')}")
+                        self.logger.info(f"Email sent for item: {item.get('recipient_inn', 'Unknown')}")
                     except Exception as e:
-                        self.logger.error(f"Failed to send email for item: {item.get('inn', 'Unknown')}. Error: {e}")
+                        self.logger.error(f"Failed to send email for item: {item.get('recipient_inn', 'Unknown')}. Error: {e}")
                     
                     all_data.append(combined_data)
 
@@ -113,7 +115,7 @@ class OrchestratorService:
         try:
             self.logger.debug(f"Parsing item data: {item}")
 
-            inn = item.get("inn", None)
+            inn = item.get("recipient_inn", None)
             if not inn:
                 self.logger.warning("INN not found in item data")
                 return {}

@@ -17,7 +17,6 @@ class LogHandler(QThread):
         self.handler = logging.StreamHandler(self)
         self.handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s (%(filename)s:%(lineno)d): %(message)s"))
         self.logger.addHandler(self.handler)
-        self.logger.setLevel(logging.DEBUG)
 
     def write(self, message):
         if message.strip():

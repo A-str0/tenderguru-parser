@@ -13,7 +13,6 @@ class EmailService:
         self.last_email_time = 0
 
 
-
     def send_email(self, subject: str, body: str):
         self.logger.debug("Preparing to send email...")
         try:
