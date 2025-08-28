@@ -1,35 +1,50 @@
 import smtplib
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from handlers.datetime_handler import current_formatted_time
-from handlers.logging_handler import setup_logger, logging
+from handlers.logging_handler import get_logger, logging, logging
+from config import Config
 
 
 class EmailService:
-    cur_time: str = current_formatted_time()
-    logger: logging.Logger = setup_logger(__name__, "Logs", f"EmailService_Log_{cur_time}.log")
+    def __init__(self, config: Config):
+        self.config = config
+        self.logger: logging.Logger = get_logger()
+        self.last_email_time = 0
 
 
-    def __init__(self):
-        pass
 
-
-    def send_email(self, smtp_config: dict, subject: str, body: str):
+    def send_email(self, subject: str, body: str):
         self.logger.debug("Preparing to send email...")
         try:
+            # Get email configuration from config
+            smtp_server = self.config.get("email.smtp_server", "smtp.example.com")
+            smtp_port = self.config.get("email.smtp_port", 587)
+            user = self.config.get("email.user", "your_email@example.com")
+            password = self.config.get("email.password", "your_password")
+            recipient = self.config.get("email.recipient", "recipient@example.com")
+            
+            # Check if enough time has passed since last email
+            email_interval = self.config.get("email_sending.interval", 300)  # 5 minutes default
+            current_time = time.time()
+            if current_time - self.last_email_time < email_interval:
+                self.logger.info(f"Skipping email send to respect interval. Next email can be sent in {email_interval - (current_time - self.last_email_time):.0f} seconds.")
+                return
+
             msg = MIMEMultipart()
-            msg["From"] = smtp_config["user"]
-            msg["To"] = smtp_config["recipient"]
+            msg["From"] = user
+            msg["To"] = recipient
             msg["Subject"] = subject
 
-            msg.attach(MIMEText(body, "plain", "utf-8"))
+            msg.attach(MIMEText(body, "html", "utf-8"))
 
-            self.logger.debug(f"Connecting to SMTP server: {smtp_config['smtp_server']}:{smtp_config['smtp_port']}")
-            with smtplib.SMTP(smtp_config["smtp_server"], smtp_config["smtp_port"]) as server:
+            self.logger.debug(f"Connecting to SMTP server: {smtp_server}:{smtp_port}")
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
-                server.login(smtp_config["user"], smtp_config["password"])
-                server.send_message(msg, from_addr=smtp_config["user"], to_addrs=smtp_config["recipient"])
+                server.login(user, password)
+                server.send_message(msg, from_addr=user, to_addrs=recipient)
 
+            self.last_email_time = time.time()
             self.logger.info("Email sent successfully")
         except Exception as e:
             self.logger.error(f"Error sending email: {e}")
