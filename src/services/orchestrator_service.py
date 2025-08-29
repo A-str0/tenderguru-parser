@@ -8,6 +8,7 @@ from services.parsing_service import ParsingService
 from services.email_service import EmailService
 from services.database_service import DatabaseService
 from config import Config
+import datetime
 
 
 class OrchestratorService:
@@ -21,29 +22,29 @@ class OrchestratorService:
         self.database_service = DatabaseService(config.get("database.path", "tenderguru.db"))
         
         self.processing_thread = None
-        self.stop_processing = threading.Event()
+        self.stop_processing_event = threading.Event()
 
-    def start_processing(self, api_code: str, start_page: int = 0) -> None:
+    def start_processing(self, api_code: str, start_page: int = 0, date: datetime.datetime = datetime.datetime.now()) -> None:
         if self.processing_thread and self.processing_thread.is_alive():
             self.logger.warning("Processing is already running")
             return
 
-        self.stop_processing.clear()
+        self.stop_processing_event.clear()
         self.processing_thread = threading.Thread(
             target=self.process_data, 
-            args=(api_code, start_page)
+            args=(api_code, start_page, date)
         )
         self.processing_thread.start()
         self.logger.info("Started processing thread")
 
     def stop_processing(self) -> None:
         self.logger.info("Stopping processing...")
-        self.stop_processing.set()
+        self.stop_processing_event.set()
 
     def is_processing(self) -> bool:
         return self.processing_thread and self.processing_thread.is_alive()
 
-    def process_data(self, api_code: str, start_page: int = None) -> None:
+    def process_data(self, api_code: str, start_page: int = None, date: datetime.datetime = datetime.datetime.now()) -> None:
         self.logger.info("Starting data processing...")
         
         # Get last processed page from database or use provided start_page
@@ -56,22 +57,27 @@ class OrchestratorService:
         
         all_data: list = []
 
-        while not self.stop_processing.is_set():
+        while not self.stop_processing_event.is_set():
             try:
-                self.logger.debug(f"Processing page {page_number}")
+                self.logger.debug(f"Processing page {page_number} with date {date.strftime('%Y-%m-%d')}")
                 payload: dict = {
                     "mode": "reject",
                     "dtype": "json",
                     "api_code": api_code,
                     "page": f"{page_number}",
+                    "date": f"{date.strftime('%Y-%m-%d')}"
                 }
                 
                 json_data = self.api_service.request(payload)
 
-                if json_data[0] == "ERROR":
-                    self.logger.error(f"API returned error (page {page_number})")
+                if len(json_data) == 0:
+                    self.logger.error(f"API returned 0 items (page {page_number}, date {date.strftime('%Y-%m-%d')})")
+                    self.stop_processing()
 
-                    if not self.stop_processing.wait(5):
+                if json_data[0] == "ERROR":
+                    self.logger.error(f"API returned error (page {page_number}, date {date.strftime('%Y-%m-%d')})")
+
+                    if not self.stop_processing_event.wait(5):
                         continue
                     else:
                         break
@@ -82,7 +88,7 @@ class OrchestratorService:
                     break
 
                 for item in json_data:
-                    if self.stop_processing.is_set():
+                    if self.stop_processing_event.is_set():
                         self.logger.info("Processing stopped by user")
                         break
                     
@@ -128,7 +134,7 @@ class OrchestratorService:
                     
                     all_data.append(combined_data)
 
-                if self.stop_processing.is_set():
+                if self.stop_processing_event.is_set():
                     self.logger.info("Processing stopped by user")
                     break
 
@@ -144,7 +150,7 @@ class OrchestratorService:
             except Exception as e:
                 self.logger.error(f"Iteration {page_number} failed: {e}")
 
-                if not self.stop_processing.wait(5):
+                if not self.stop_processing_event.wait(5):
                     continue
                 else:
                     break

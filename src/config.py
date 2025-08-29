@@ -17,6 +17,7 @@ class Config:
         """
         default_config = {
             "api": {
+                "date": "2025-05-28",
                 "base_url": "https://www.tenderguru.ru/api2.3/export",
                 "api_code": "YOUR_API_CODE_HERE"
             },

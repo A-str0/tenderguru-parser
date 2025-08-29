@@ -1,20 +1,23 @@
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QDate
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, 
                              QTextEdit, QLabel, QLineEdit, QFormLayout, 
-                             QGroupBox, QSpinBox, QComboBox, QCheckBox)
+                             QGroupBox, QSpinBox, QComboBox, QCheckBox, 
+                             QCalendarWidget)
 from services.orchestrator_service import OrchestratorService
+from handlers.logging_handler import setup_logger
 from config import Config
 import sys
 import logging
 import threading
+import datetime
 
 
 class LogHandler(QThread):
     new_log = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
-        self.logger = logging.getLogger("tenderguru_parser")
+        self.logger = setup_logger(config)
         self.handler = logging.StreamHandler(self)
         self.handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s (%(filename)s:%(lineno)d): %(message)s"))
         self.logger.addHandler(self.handler)
@@ -31,9 +34,10 @@ class TenderGuruParserApp(QWidget):
     def __init__(self):
         super().__init__()
         self.config = Config()
-        self.orchestrator = OrchestratorService(self.config)
-        self.log_handler = LogHandler()
+        self.log_handler = LogHandler(self.config)
         self.log_handler.new_log.connect(self.update_log)
+        self.log_output = []
+        self.orchestrator = OrchestratorService(self.config)
         self.init_ui()
         
         # Initialize scheduler if enabled
@@ -59,6 +63,10 @@ class TenderGuruParserApp(QWidget):
         api_layout.addRow(QLabel("Код API:"), self.api_code_input)
         self.api_base_url_input = QLineEdit(self.config.get("api.base_url", "https://www.tenderguru.ru/api2.3/export"))
         api_layout.addRow(QLabel("URL API:"), self.api_base_url_input)
+        self.api_date = QCalendarWidget()
+        year, month, day = self.config.get("api.date", datetime.datetime.now().date().strftime("%Y-%m-%d")).split("-")
+        self.api_date.setSelectedDate(QDate(int(year), int(month), int(day)))
+        api_layout.addRow(QLabel("Дата проверки"), self.api_date)
         api_group.setLayout(api_layout)
 
         email_group = QGroupBox("Настройки Email")
@@ -131,7 +139,15 @@ class TenderGuruParserApp(QWidget):
 
         button_layout = QVBoxLayout()
         self.parse_button = QPushButton('Начать парсинг')
-        self.parse_button.clicked.connect(self.start_parsing)
+        self.parse_button.clicked.connect(
+            lambda _: 
+                self.start_parsing(
+                    datetime.datetime.strptime(
+                        self.config.get("api.date", datetime.datetime.now().date()),
+                        "%Y-%m-%d"
+                    )
+                )
+        )
         button_layout.addWidget(self.parse_button)
 
         self.stop_button = QPushButton('Остановить парсинг')
@@ -159,6 +175,7 @@ class TenderGuruParserApp(QWidget):
     def save_config(self):
         self.config.set("api.api_code", self.api_code_input.text())
         self.config.set("api.base_url", self.api_base_url_input.text())
+        self.config.set("api.date", self.api_date.selectedDate().toString("yyyy-MM-dd"))
         self.config.set("email.smtp_server", self.email_smtp_server_input.text())
         self.config.set("email.smtp_port", self.email_smtp_port_input.value())
         self.config.set("email.user", self.email_user_input.text())
@@ -211,7 +228,7 @@ class TenderGuruParserApp(QWidget):
             self.log_output.append("Запуск запланированного парсинга...")
             self.start_parsing()
 
-    def start_parsing(self):
+    def start_parsing(self, date: datetime.datetime = datetime.datetime.now()):
         self.save_config()
         
         api_code = self.api_code_input.text().strip()
@@ -219,12 +236,12 @@ class TenderGuruParserApp(QWidget):
             self.log_output.append("Пожалуйста, введите код API.")
             return
 
-        self.log_output.append("Запуск процесса парсинга...")
+        self.log_output.append(f"Запуск процесса парсинга для даты {date}...")
         self.parse_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.parse_button.setText("Парсинг...")
 
-        self.orchestrator.start_processing(api_code)
+        self.orchestrator.start_processing(api_code, date=date)
 
     def stop_parsing(self):
         self.log_output.append("Остановка процесса парсинга...")

@@ -100,9 +100,6 @@ def setup_logger(config: Config = None) -> logging.Logger:
     return logger
 
 
-def get_logger() -> logging.Logger:
+def get_logger(config: Config = None) -> logging.Logger:
     global _global_logger
-    if _global_logger is None:
-        _global_logger = setup_logger()
-    
     return _global_logger
