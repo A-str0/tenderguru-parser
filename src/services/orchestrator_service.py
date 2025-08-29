@@ -173,7 +173,7 @@ class OrchestratorService:
                 self.logger.error(f"Failed to retrieve webpage for INN: {inn}")
                 return {}
 
-            is_ip = item.get("type", "").lower() == "ип" or "ип" in item.get("name", "").lower()
+            is_ip = "ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ" not in item.get("recipient_name", "").upper()
             self.logger.debug(f"Item identified as {'IP' if is_ip else 'OOO'}")
 
             if is_ip:

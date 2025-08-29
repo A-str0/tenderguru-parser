@@ -13,10 +13,12 @@ class ParsingService:
 
         result: dict = {
             "reg_date": None,
+            "capital": None,
             "connections": None,
             "gz_data": None,
             "gz_link": None,
-            "licenses": None
+            "licenses": None,
+            "finances": None
         }
 
         try:
