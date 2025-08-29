@@ -10,9 +10,9 @@ class RequestService:
         self.REQUEST_URL = "https://www.rusprofile.ru/search"
         self.logger: logging.Logger = get_logger()
         
-        self.request_delay = config.get("parsing.request_delay", 1)
-        self.timeout = config.get("parsing.timeout", 30)
-        self.max_retries = config.get("parsing.max_retries", 3)
+        self.request_delay = config.get("api.request_delay", 1)
+        self.timeout = config.get("api.timeout", 30)
+        self.max_retries = config.get("api.max_retries", 3)
         
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'

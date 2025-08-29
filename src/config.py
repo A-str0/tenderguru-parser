@@ -19,21 +19,19 @@ class Config:
             "api": {
                 "date": "2025-05-28",
                 "base_url": "https://www.tenderguru.ru/api2.3/export",
-                "api_code": "YOUR_API_CODE_HERE"
-            },
-        "email": {
-            "smtp_server": "smtp.example.com",
-            "smtp_port": 587,
-            "user": "your_email@example.com",
-            "password": "your_password",
-            "recipient": "recipient@example.com",
-            "subject_template": "Расторжение. Заказчик {publish_date} {recipient_name}",
-            "body_template": "<p>Номер контракта: {reg_number}</p>\n<p>Поставщик: {recipient_name}</p>\n<p>Регион Поставщика: {region}</p>\n<p>ИНН: {recipient_inn}</p>\n<p>Телефон: {recipient_phone}</p>\n<p>E-mail: {recipient_mail}</p>\n<p>Заказчик: {customer}</p>\n<p>Дата вступления в силу: {effective_date}</p>\n<p>Ссылка на решение: <a href='{filelink}'>{filelink}</a></p>\n<p>Предмет контракта: {tend_name}</p>\n<p>Причина: {termination_reason}</p>\n<p>Данные с Руспрофайл (ТЗ получение данных с ресурса Руспрофайл)</p>"
-        },
-            "parsing": {
+                "api_code": "YOUR_API_CODE_HERE",
                 "request_delay": 1,  # Delay between requests in seconds
                 "max_retries": 3,    # Maximum number of retries for failed requests
                 "timeout": 30        # Request timeout in seconds
+            },
+            "email": {
+                "smtp_server": "smtp.example.com",
+                "smtp_port": 587,
+                "user": "your_email@example.com",
+                "password": "your_password",
+                "recipient": "recipient@example.com",
+                "subject_template": "Расторжение. Заказчик {publish_date} {recipient_name}",
+                "body_template": "<p>Номер контракта: {reg_number}</p>\n<p>Поставщик: {recipient_name}</p>\n<p>Регион Поставщика: {region}</p>\n<p>ИНН: {recipient_inn}</p>\n<p>Телефон: {recipient_phone}</p>\n<p>E-mail: {recipient_mail}</p>\n<p>Заказчик: {customer}</p>\n<p>Дата вступления в силу: {effective_date}</p>\n<p>Ссылка на решение: <a href='{filelink}'>{filelink}</a></p>\n<p>Предмет контракта: {tend_name}</p>\n<p>Причина: {termination_reason}</p>\n<p>Данные с Руспрофайл (ТЗ получение данных с ресурса Руспрофайл)</p>"
             },
             "logging": {
                 "level": "DEBUG",     # Logging level (DEBUG, INFO, WARNING, ERROR)

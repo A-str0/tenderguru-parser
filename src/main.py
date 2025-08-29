@@ -8,7 +8,6 @@ from handlers.logging_handler import setup_logger
 from config import Config
 import sys
 import logging
-import threading
 import datetime
 
 
@@ -68,6 +67,16 @@ class TenderGuruParserApp(QWidget):
         self.api_date.setSelectedDate(QDate(int(year), int(month), int(day)))
         api_layout.addRow(QLabel("Дата проверки"), self.api_date)
         api_group.setLayout(api_layout)
+        self.api_request_delay_input = QSpinBox()
+        self.api_request_delay_input.setValue(self.config.get("api.request_delay", 1))
+        api_layout.addRow(QLabel("Задержка запроса (с):"), self.api_request_delay_input)
+        self.api_max_retries_input = QSpinBox()
+        self.api_max_retries_input.setValue(self.config.get("api.max_retries", 3))
+        api_layout.addRow(QLabel("Максимальные попытки:"), self.api_max_retries_input)
+        self.api_timeout_input = QSpinBox()
+        self.api_timeout_input.setValue(self.config.get("api.timeout", 30))
+        api_layout.addRow(QLabel("Таймаут (с):"), self.api_timeout_input)
+        api_group.setLayout(api_layout)
 
         email_group = QGroupBox("Настройки Email")
         email_layout = QFormLayout()
@@ -85,19 +94,6 @@ class TenderGuruParserApp(QWidget):
         self.email_recipient_input = QLineEdit(self.config.get("email.recipient", "recipient@example.com"))
         email_layout.addRow(QLabel("Получатель:"), self.email_recipient_input)
         email_group.setLayout(email_layout)
-
-        parsing_group = QGroupBox("Настройки парсинга")
-        parsing_layout = QFormLayout()
-        self.parsing_request_delay_input = QSpinBox()
-        self.parsing_request_delay_input.setValue(self.config.get("parsing.request_delay", 1))
-        parsing_layout.addRow(QLabel("Задержка запроса (с):"), self.parsing_request_delay_input)
-        self.parsing_max_retries_input = QSpinBox()
-        self.parsing_max_retries_input.setValue(self.config.get("parsing.max_retries", 3))
-        parsing_layout.addRow(QLabel("Максимальные попытки:"), self.parsing_max_retries_input)
-        self.parsing_timeout_input = QSpinBox()
-        self.parsing_timeout_input.setValue(self.config.get("parsing.timeout", 30))
-        parsing_layout.addRow(QLabel("Таймаут (с):"), self.parsing_timeout_input)
-        parsing_group.setLayout(parsing_layout)
 
         email_sending_group = QGroupBox("Настройки отправки Email")
         email_sending_layout = QFormLayout()
@@ -130,7 +126,6 @@ class TenderGuruParserApp(QWidget):
 
         config_layout.addRow(api_group)
         config_layout.addRow(email_group)
-        config_layout.addRow(parsing_group)
         config_layout.addRow(email_sending_group)
         config_layout.addRow(logging_group)
         config_layout.addRow(scheduler_group)
@@ -176,15 +171,17 @@ class TenderGuruParserApp(QWidget):
         self.config.set("api.api_code", self.api_code_input.text())
         self.config.set("api.base_url", self.api_base_url_input.text())
         self.config.set("api.date", self.api_date.selectedDate().toString("yyyy-MM-dd"))
+        self.config.set("api.request_delay", self.api_request_delay_input.value())
+        self.config.set("api.max_retries", self.api_max_retries_input.value())
+        self.config.set("api.timeout", self.api_timeout_input.value())
+
         self.config.set("email.smtp_server", self.email_smtp_server_input.text())
         self.config.set("email.smtp_port", self.email_smtp_port_input.value())
         self.config.set("email.user", self.email_user_input.text())
         self.config.set("email.password", self.email_password_input.text())
         self.config.set("email.recipient", self.email_recipient_input.text())
-        self.config.set("parsing.request_delay", self.parsing_request_delay_input.value())
-        self.config.set("parsing.max_retries", self.parsing_max_retries_input.value())
-        self.config.set("parsing.timeout", self.parsing_timeout_input.value())
         self.config.set("email_sending.interval", self.email_sending_interval_input.value())
+
         self.config.set("logging.level", self.logging_level_input.currentText())
         self.config.set("scheduler.enabled", self.scheduler_enabled_input.isChecked())
         self.config.set("scheduler.interval_minutes", self.scheduler_interval_input.value())
