@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source .venv/bin/activate
+
+python src/main.py
+
+deactivate
+
+exit 0
