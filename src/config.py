@@ -17,7 +17,7 @@ class Config:
         """
         default_config = {
             "api": {
-                "date": "2025-05-28",
+                "date": "2025-10-26",
                 "base_url": "https://www.tenderguru.ru/api2.3/export",
                 "api_code": "YOUR_API_CODE_HERE",
                 "request_delay": 1,  # Delay between requests in seconds
@@ -46,7 +46,9 @@ class Config:
             },
             "scheduler": {
                 "enabled": False,        # Enable/disable scheduled parsing
-                "interval_minutes": 60   # Interval between scheduled runs in minutes
+                "interval_minutes": 60,  # Interval between scheduled runs in minutes
+                "transition_time": "00:00",  # Time to transition to next date (HH:MM)
+                "last_transition": "2025-10-25"
             }
         }
 

@@ -42,6 +42,7 @@ class TenderGuruParserApp(QWidget):
         # Initialize scheduler if enabled
         if self.config.get("scheduler.enabled", False):
             self.start_scheduler()
+            self.start_transition_checker()
 
     def init_ui(self):
         self.setWindowTitle('Парсер')
@@ -122,6 +123,8 @@ class TenderGuruParserApp(QWidget):
         self.scheduler_interval_input.setRange(1, 1440)
         self.scheduler_interval_input.setValue(self.config.get("scheduler.interval_minutes", 60))
         scheduler_layout.addRow(QLabel("Интервал (минуты):"), self.scheduler_interval_input)
+        self.scheduler_transition_time_input = QLineEdit(self.config.get("scheduler.transition_time", "00:00"))
+        scheduler_layout.addRow(QLabel("Время перехода (HH:MM):"), self.scheduler_transition_time_input)
         scheduler_group.setLayout(scheduler_layout)
 
         config_layout.addRow(api_group)
@@ -185,6 +188,7 @@ class TenderGuruParserApp(QWidget):
         self.config.set("logging.level", self.logging_level_input.currentText())
         self.config.set("scheduler.enabled", self.scheduler_enabled_input.isChecked())
         self.config.set("scheduler.interval_minutes", self.scheduler_interval_input.value())
+        self.config.set("scheduler.transition_time", self.scheduler_transition_time_input.text())
         
         self.log_output.append("Конфигурация успешно сохранена!")
         
@@ -222,8 +226,64 @@ class TenderGuruParserApp(QWidget):
     def scheduled_parse(self):
         """Method called by scheduler to start parsing."""
         if not self.orchestrator.is_processing():
-            self.log_output.append("Запуск запланированного парсинга...")
-            self.start_parsing()
+            date_str = self.config.get("api.date", datetime.datetime.now().strftime("%Y-%m-%d"))
+            try:
+                parse_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+                self.start_parsing(parse_date)
+            except:
+                self.start_parsing()
+
+    def start_transition_checker(self):
+        """Запускает проверку времени перехода даты (один раз в сутки)"""
+        if hasattr(self, 'transition_timer') and self.transition_timer.isActive():
+            return
+
+        self.transition_timer = QTimer(self)
+        self.transition_timer.timeout.connect(self.check_date_transition)
+        interval: int = self.config.get("scheduler.interval_minutes", 1)
+        self.transition_timer.start(interval * 60 * 1000)
+        self.log_output.append("Проверка времени перехода даты запущена.")
+
+        self.check_date_transition()
+
+    def check_date_transition(self):
+        """Проверяет, нужно ли переключить api.date на следующий день"""
+        now = datetime.datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+        current_time = now.strftime("%H:%M")
+
+        transition_time_str = self.config.get("scheduler.transition_time", "03:00")
+        last_transition = self.config.get("scheduler.last_transition")
+
+        try:
+            if current_time >= transition_time_str:
+                if last_transition != today_str:
+                    self.perform_date_transition(today_str)
+        except Exception as e:
+            self.log_output.append(f"Ошибка в check_date_transition: {e}")
+
+    def perform_date_transition(self, today_str):
+        """Переключает api.date на следующий день и сохраняет состояние"""
+        current_date_str = self.config.get("api.date")
+        if not current_date_str:
+            self.log_output.append("Ошибка: api.date не задан в конфиге.")
+            return
+
+        try:
+            current_date = datetime.datetime.strptime(current_date_str, "%Y-%m-%d")
+            new_date = current_date + datetime.timedelta(days=1)
+            new_date_str = new_date.strftime("%Y-%m-%d")
+
+            self.config.set("api.date", new_date_str)
+            self.config.set("scheduler.last_transition", today_str)
+
+            year, month, day = map(int, new_date_str.split("-"))
+            self.api_date.setSelectedDate(QDate(year, month, day))
+
+            self.log_output.append(f"Дата автоматически переключена: {current_date_str} → {new_date_str}")
+
+        except Exception as e:
+            self.log_output.append(f"Ошибка при переключении даты: {e}")
 
     def start_parsing(self, date: datetime.datetime = datetime.datetime.now()):
         self.save_config()
@@ -257,6 +317,9 @@ class TenderGuruParserApp(QWidget):
         # Stop scheduler if running
         if hasattr(self, 'scheduler_timer') and self.scheduler_timer.isActive():
             self.scheduler_timer.stop()
+        
+        if hasattr(self, 'transition_timer') and self.transition_timer.isActive():
+            self.transition_timer.stop()
             
         event.accept()
 
